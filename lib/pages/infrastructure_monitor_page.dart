@@ -1,73 +1,151 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../models/module_status.dart';
+import '../models/homelab_module.dart';
+import '../models/telemetry_data.dart';
+import '../services/module_service.dart';
+import '../services/telemetry_service.dart';
 import 'dashboard_page.dart';
 import 'modules_page.dart';
 import 'events_page.dart';
 import 'settings_page.dart' show SettingsPage, NotificationPreference;
 
 class InfrastructureMonitorPage extends StatefulWidget {
-  const InfrastructureMonitorPage({super.key});
+  final String baseUrl;
+  final String token;
+  final VoidCallback onDisconnect;
+  final VoidCallback onLogout;
+
+  const InfrastructureMonitorPage({
+    super.key,
+    required this.baseUrl,
+    required this.token,
+    required this.onDisconnect,
+    required this.onLogout,
+  });
 
   @override
   State<InfrastructureMonitorPage> createState() => _InfrastructureMonitorPageState();
 }
 
 class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
-  late List<ModuleStatus> _modules;
-  late Timer _timer;
+  List<HomelabModule> _modules = [];
+  final Set<String> _togglingIds = {};
+  bool _loading = true;
+  String? _error;
   int _selectedIndex = 0;
   NotificationPreference _notificationPreference = NotificationPreference.all;
+
+  TelemetryData? _telemetry;
+  bool _telemetryLoading = true;
+  String? _telemetryError;
+  Timer? _telemetryTimer;
 
   @override
   void initState() {
     super.initState();
-    _modules = [
-      const ModuleStatus(name: 'Photo', defaultCpuUsage: 24, active: true, uptimeSeconds: 1500),
-      const ModuleStatus(name: 'Stockage', defaultCpuUsage: 18, active: true, uptimeSeconds: 3600),
-      const ModuleStatus(name: 'Vidéo', defaultCpuUsage: 32, active: true, uptimeSeconds: 2400),
-    ];
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        for (int i = 0; i < _modules.length; i++) {
-          if (_modules[i].active) {
-            _modules[i] = _modules[i].copyWith(
-              uptimeSeconds: _modules[i].uptimeSeconds + 1,
-            );
-          }
-        }
-      });
-    });
+    _loadModules();
+    _loadTelemetry();
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 10), (_) => _loadTelemetry());
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _telemetryTimer?.cancel();
     super.dispose();
   }
 
-  void _toggleModule(int index) {
+  Future<void> _loadTelemetry() async {
+    if (_telemetry == null && mounted) {
+      setState(() => _telemetryLoading = true);
+    }
+    try {
+      final telemetry = await TelemetryService.fetchTelemetry(widget.baseUrl, widget.token);
+      if (!mounted) return;
+      setState(() {
+        _telemetry = telemetry;
+        _telemetryLoading = false;
+        _telemetryError = null;
+      });
+    } on UnauthorizedException {
+      widget.onLogout();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _telemetryLoading = false;
+        _telemetryError = 'Télémétrie indisponible.';
+      });
+    }
+  }
+
+  Future<void> _loadModules() async {
     setState(() {
-      final module = _modules[index];
-      if (module.active) {
-        _modules[index] = module.copyWith(active: false, uptimeSeconds: 0);
-      } else {
-        _modules[index] = module.copyWith(active: true, uptimeSeconds: 0);
-      }
+      _loading = true;
+      _error = null;
     });
+
+    try {
+      final modules = await ModuleService.fetchModules(widget.baseUrl, widget.token);
+      if (!mounted) return;
+      setState(() {
+        _modules = modules;
+        _loading = false;
+      });
+    } on UnauthorizedException {
+      widget.onLogout();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Impossible de charger les modules depuis le Homelab.';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleModule(HomelabModule module) async {
+    setState(() => _togglingIds.add(module.id));
+    try {
+      if (module.isActive) {
+        await ModuleService.stopModule(widget.baseUrl, widget.token, module.id);
+      } else {
+        await ModuleService.startModule(widget.baseUrl, widget.token, module.id);
+      }
+      await _loadModules();
+    } on UnauthorizedException {
+      widget.onLogout();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _togglingIds.remove(module.id));
+    }
   }
 
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
-        return DashboardPage(modules: _modules);
+        return DashboardPage(
+          modules: _modules,
+          loading: _loading,
+          error: _error,
+          onRetry: _loadModules,
+          telemetry: _telemetry,
+          telemetryLoading: _telemetryLoading,
+          telemetryError: _telemetryError,
+          onRetryTelemetry: _loadTelemetry,
+        );
       case 1:
-        return ModulesPage(modules: _modules, onToggleModule: _toggleModule);
+        return ModulesPage(
+          modules: _modules,
+          loading: _loading,
+          error: _error,
+          togglingIds: _togglingIds,
+          onToggleModule: _toggleModule,
+          onRetry: _loadModules,
+        );
       case 2:
         return const EventsPage();
       case 3:
@@ -78,10 +156,26 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
               _notificationPreference = preference;
             });
           },
+          homelabUrl: widget.baseUrl,
+          onDisconnect: widget.onDisconnect,
+          onLogout: widget.onLogout,
         );
       default:
-        return DashboardPage(modules: _modules);
+        return DashboardPage(
+          modules: _modules,
+          loading: _loading,
+          error: _error,
+          onRetry: _loadModules,
+          telemetry: _telemetry,
+          telemetryLoading: _telemetryLoading,
+          telemetryError: _telemetryError,
+          onRetryTelemetry: _loadTelemetry,
+        );
     }
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_loadModules(), _loadTelemetry()]);
   }
 
   @override
@@ -91,6 +185,12 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
         title: const Text('Homelab Monitor'),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loading ? null : _refreshAll,
+          ),
+        ],
       ),
       body: _buildPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(

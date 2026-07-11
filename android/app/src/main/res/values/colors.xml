@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches AppColors.base300 (lib/theme/app_theme.dart) so the native
+         launch screen doesn't flash white before Flutter's dark theme loads. -->
+    <color name="launch_background">#FF0A1120</color>
+</resources>

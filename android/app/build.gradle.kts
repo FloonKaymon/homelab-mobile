@@ -13,6 +13,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by flutter_local_notifications (uses java.time APIs on older API levels).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -41,4 +43,17 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// flutter_secure_storage (via androidx.security:security-crypto) pulls in
+// com.google.crypto.tink:tink-android, while unifiedpush's Web Push crypto
+// dependency pulls in the plain (non-Android) tink artifact - both ship the
+// same classes, causing a duplicate-class build failure. Keep only the
+// Android variant.
+configurations.all {
+    exclude(group = "com.google.crypto.tink", module = "tink")
 }

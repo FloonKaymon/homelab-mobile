@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
-import '../models/module_status.dart';
+import '../models/homelab_module.dart';
+import '../theme/app_theme.dart';
 
 class ModulesPage extends StatelessWidget {
-  final List<ModuleStatus> modules;
-  final Function(int) onToggleModule;
+  final List<HomelabModule> modules;
+  final bool loading;
+  final String? error;
+  final Set<String> togglingIds;
+  final void Function(HomelabModule) onToggleModule;
+  final Future<void> Function() onRetry;
 
   const ModulesPage({
     super.key,
     required this.modules,
+    required this.loading,
+    required this.error,
+    required this.togglingIds,
     required this.onToggleModule,
+    required this.onRetry,
   });
 
   @override
@@ -21,85 +30,138 @@ class ModulesPage extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             'Gestion des Modules',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 20),
-          Expanded(
-            child: ListView.separated(
-              itemCount: modules.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final module = modules[index];
-                return _buildModuleCard(context, module, index);
-              },
-            ),
-          ),
+          Expanded(child: _buildBody(context)),
         ],
       ),
     );
   }
 
-  Widget _buildModuleCard(BuildContext context, ModuleStatus module, int index) {
+  Widget _buildBody(BuildContext context) {
+    if (loading && modules.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (error != null && modules.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: AppColors.faint(0.4)),
+              const SizedBox(height: 12),
+              Text(error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: onRetry, child: const Text('Réessayer')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (modules.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRetry,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 64),
+              child: Center(
+                child: Text('Aucun module trouvé.', style: TextStyle(color: AppColors.faint(0.4))),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: onRetry,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: modules.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) => _buildModuleCard(context, modules[index]),
+      ),
+    );
+  }
+
+  Widget _buildModuleCard(BuildContext context, HomelabModule module) {
+    final busy = togglingIds.contains(module.id);
+    final disabled = busy || module.status == ModuleRunStatus.installing;
+
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
+      color: AppColors.base100,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: AppColors.faint(0.05)),
+      ),
+      elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  module.name,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                Chip(
-                  label: Text(
-                    module.active ? 'Actif' : 'Arrêté',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                _buildIcon(module),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        module.name,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      if (module.version.isNotEmpty)
+                        Text(
+                          'v${module.version}',
+                          style: TextStyle(fontSize: 12, fontFamily: 'monospace', color: AppColors.faint(0.4)),
+                        ),
+                    ],
                   ),
-                  backgroundColor: module.active ? const Color(0xFFE8F5E9) : const Color(0xFFECEFF1),
-                  avatar: Icon(
-                    module.active ? Icons.check_circle : Icons.pause_circle,
-                    color: module.active ? const Color(0xFF558B2F) : const Color(0xFF90A4AE),
-                  ),
                 ),
+                _buildStatusChip(module),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildStatRow('Utilisation CPU', '${module.cpuUsage}%'),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: module.cpuUsage / 100,
-                minHeight: 10,
-                color: module.active ? const Color(0xFF455A64) : const Color(0xFF90A4AE),
-                backgroundColor: const Color(0xFFB0BEC5),
-              ),
-            ),
-            if (module.active) ...[
+            if (module.description != null && module.description!.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _buildStatRow('Temps actif', module.formattedUptime),
+              Text(
+                module.description!,
+                style: TextStyle(fontSize: 13, color: AppColors.faint(0.6)),
+              ),
             ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => onToggleModule(index),
+                onPressed: disabled ? null : () => onToggleModule(module),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: module.active ? const Color(0xFF62757F) : const Color(0xFF558B2F),
+                  backgroundColor: module.isActive ? AppColors.error : AppColors.success,
+                  foregroundColor: module.isActive ? AppColors.errorContent : AppColors.successContent,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: Text(
-                  module.active ? 'Arrêter le module' : 'Relancer le module',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: busy
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: module.isActive ? AppColors.errorContent : AppColors.successContent,
+                        ),
+                      )
+                    : Text(
+                        module.isActive ? 'Arrêter le module' : 'Démarrer le module',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
           ],
@@ -108,19 +170,29 @@ class ModulesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.grey, fontSize: 14),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-      ],
+  Widget _buildIcon(HomelabModule module) {
+    if (module.iconUrl == null) {
+      return Icon(Icons.widgets, size: 32, color: AppColors.faint(0.5));
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        module.iconUrl!,
+        width: 32,
+        height: 32,
+        errorBuilder: (_, _, _) => Icon(Icons.widgets, size: 32, color: AppColors.faint(0.5)),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(HomelabModule module) {
+    final (label, color, icon) = statusVisuals(module.status);
+    return Chip(
+      label: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color)),
+      avatar: Icon(icon, color: color, size: 18),
+      backgroundColor: color.withValues(alpha: 0.15),
+      side: BorderSide.none,
+      visualDensity: VisualDensity.compact,
     );
   }
 }
