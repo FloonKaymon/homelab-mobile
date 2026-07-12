@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/telemetry_data.dart';
 import 'api_exceptions.dart';
 
-/// Fetches system resource usage (CPU/RAM/disk) from the Homelab backend.
+/// Fetches system resource usage (CPU/RAM/disk) from the Modulabs backend.
 class TelemetryService {
   TelemetryService._();
 

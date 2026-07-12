@@ -4,19 +4,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Result of attempting to reach a Homelab server.
-enum ConnectionResult { success, unreachable, notHomelab, invalidUrl }
+/// Result of attempting to reach a Modulabs server.
+enum ConnectionResult { success, unreachable, notModulabs, invalidUrl }
 
-/// Stores and validates the URL of the Homelab instance the app talks to.
+/// Stores and validates the URL of the Modulabs instance the app talks to.
 ///
 /// The URL is the first thing a user must configure: everything else
 /// (module status, telemetry, notifications) is fetched relative to it.
-class HomelabConnection {
-  HomelabConnection._();
+class ModulabsConnection {
+  ModulabsConnection._();
 
-  static const _prefsKey = 'homelab_base_url';
+  static const _prefsKey = 'modulabs_base_url';
 
-  /// Returns the previously saved Homelab base URL, or null if none is set.
+  /// Returns the previously saved Modulabs base URL, or null if none is set.
   static Future<String?> getSavedUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_prefsKey);
@@ -50,7 +50,7 @@ class HomelabConnection {
     return normalized;
   }
 
-  /// Verifies that [baseUrl] actually points to a reachable Homelab backend
+  /// Verifies that [baseUrl] actually points to a reachable Modulabs backend
   /// by calling the public, unauthenticated `/api/auth/challenge` endpoint.
   static Future<ConnectionResult> testConnection(String baseUrl) async {
     final normalized = normalize(baseUrl);
@@ -61,13 +61,13 @@ class HomelabConnection {
           .get(Uri.parse('$normalized/api/auth/challenge'))
           .timeout(const Duration(seconds: 6));
 
-      if (response.statusCode != 200) return ConnectionResult.notHomelab;
+      if (response.statusCode != 200) return ConnectionResult.notModulabs;
 
       final body = jsonDecode(response.body);
       if (body is Map && body.containsKey('challenge')) {
         return ConnectionResult.success;
       }
-      return ConnectionResult.notHomelab;
+      return ConnectionResult.notModulabs;
     } on TimeoutException {
       return ConnectionResult.unreachable;
     } catch (_) {

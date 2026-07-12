@@ -6,14 +6,14 @@ import 'package:http/http.dart' as http;
 
 enum LoginResult { success, invalidCredentials, unreachable, error }
 
-/// Handles login against the Homelab backend and persists the resulting
+/// Handles login against the Modulabs backend and persists the resulting
 /// JWT session (token + user email) in the platform secure storage.
 class AuthService {
   AuthService._();
 
   static const _storage = FlutterSecureStorage();
-  static const _tokenKey = 'homelab_jwt_token';
-  static const _emailKey = 'homelab_user_email';
+  static const _tokenKey = 'modulabs_jwt_token';
+  static const _emailKey = 'modulabs_user_email';
 
   static Future<String?> getToken() => _storage.read(key: _tokenKey);
 

@@ -12,7 +12,7 @@ enum NotificationPreference {
 class SettingsPage extends StatefulWidget {
   final NotificationPreference currentPreference;
   final Function(NotificationPreference) onPreferenceChanged;
-  final String homelabUrl;
+  final String modulabsUrl;
   final VoidCallback onDisconnect;
   final VoidCallback onLogout;
 
@@ -20,7 +20,7 @@ class SettingsPage extends StatefulWidget {
     super.key,
     required this.currentPreference,
     required this.onPreferenceChanged,
-    required this.homelabUrl,
+    required this.modulabsUrl,
     required this.onDisconnect,
     required this.onLogout,
   });
@@ -112,12 +112,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Serveur Homelab',
+                    'Serveur Modulabs',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.homelabUrl,
+                    widget.modulabsUrl,
                     style: TextStyle(fontSize: 13, fontFamily: 'monospace', color: AppColors.faint(0.5)),
                   ),
                 ],
@@ -180,7 +180,7 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Changer de serveur'),
         content: const Text(
-          'Vous allez être déconnecté de ce Homelab. Vous pourrez saisir une nouvelle adresse.',
+          'Vous allez être déconnecté de Modulabs. Vous pourrez saisir une nouvelle adresse.',
         ),
         actions: [
           TextButton(

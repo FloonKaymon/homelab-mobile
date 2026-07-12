@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../models/homelab_module.dart';
+import '../models/modulabs_module.dart';
 import 'api_exceptions.dart';
 
 export 'api_exceptions.dart' show UnauthorizedException;
 
-/// Lists modules and drives their start/stop lifecycle against the Homelab
+/// Lists modules and drives their start/stop lifecycle against the Modulabs
 /// backend (`/api/modules/**`).
 class ModuleService {
   ModuleService._();
@@ -16,7 +16,7 @@ class ModuleService {
         'Authorization': 'Bearer $token',
       };
 
-  static Future<List<HomelabModule>> fetchModules(String baseUrl, String token) async {
+  static Future<List<ModulabsModule>> fetchModules(String baseUrl, String token) async {
     final response = await http
         .get(Uri.parse('$baseUrl/api/modules'), headers: _headers(token))
         .timeout(const Duration(seconds: 10));
@@ -27,7 +27,7 @@ class ModuleService {
     }
 
     final list = jsonDecode(response.body) as List;
-    return list.map((e) => HomelabModule.fromJson(e as Map<String, dynamic>)).toList();
+    return list.map((e) => ModulabsModule.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   static Future<void> startModule(String baseUrl, String token, String id) =>

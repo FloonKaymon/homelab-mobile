@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../models/homelab_module.dart';
+import '../models/modulabs_module.dart';
 import '../theme/app_theme.dart';
 
 class ModulesPage extends StatelessWidget {
-  final List<HomelabModule> modules;
+  final List<ModulabsModule> modules;
   final bool loading;
   final String? error;
   final Set<String> togglingIds;
-  final void Function(HomelabModule) onToggleModule;
+  final void Function(ModulabsModule) onToggleModule;
   final Future<void> Function() onRetry;
 
   const ModulesPage({
@@ -90,7 +90,7 @@ class ModulesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildModuleCard(BuildContext context, HomelabModule module) {
+  Widget _buildModuleCard(BuildContext context, ModulabsModule module) {
     final busy = togglingIds.contains(module.id);
     final disabled = busy || module.status == ModuleRunStatus.installing;
 
@@ -170,7 +170,7 @@ class ModulesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon(HomelabModule module) {
+  Widget _buildIcon(ModulabsModule module) {
     if (module.iconUrl == null) {
       return Icon(Icons.widgets, size: 32, color: AppColors.faint(0.5));
     }
@@ -185,7 +185,7 @@ class ModulesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(HomelabModule module) {
+  Widget _buildStatusChip(ModulabsModule module) {
     final (label, color, icon) = statusVisuals(module.status);
     return Chip(
       label: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color)),

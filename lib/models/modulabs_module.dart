@@ -18,7 +18,7 @@ ModuleRunStatus _statusFromApi(String? raw) {
 
 /// Mirrors the backend's `ModuleDto` (com.homelab.core.api.dto.ModuleDto),
 /// as returned by `GET /api/modules`.
-class HomelabModule {
+class ModulabsModule {
   final String id;
   final String name;
   final String version;
@@ -27,7 +27,7 @@ class HomelabModule {
   final ModuleRunStatus status;
   final bool hasParams;
 
-  const HomelabModule({
+  const ModulabsModule({
     required this.id,
     required this.name,
     required this.version,
@@ -40,8 +40,8 @@ class HomelabModule {
   bool get isActive => status == ModuleRunStatus.active;
   bool get isBusy => status == ModuleRunStatus.installing;
 
-  factory HomelabModule.fromJson(Map<String, dynamic> json) {
-    return HomelabModule(
+  factory ModulabsModule.fromJson(Map<String, dynamic> json) {
+    return ModulabsModule(
       id: json['id'] as String,
       name: json['name'] as String,
       version: (json['version'] as String?) ?? '',

@@ -1,4 +1,4 @@
-name: app_homelab
+name: app_modulabs
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -35,15 +35,17 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  # HTTP client used to talk to the Homelab backend API.
+  # HTTP client used to talk to the Modulabs backend API.
   http: ^1.2.2
-  # Persists the configured Homelab server URL across app restarts.
+  # Persists the configured Modulabs server URL across app restarts.
   shared_preferences: ^2.3.3
   # Stores the JWT session token in the platform keystore/keychain.
   flutter_secure_storage: ^9.2.2
-  # Registers with a UnifiedPush distributor (e.g. the ntfy app) to receive alert pushes.
-  unifiedpush: ^6.2.0
-  # Renders the local notification when a push payload is received.
+  # Runs the alert-polling loop in an Android foreground service so it keeps
+  # checking for new alert events every minute even when the app is
+  # backgrounded or fully killed.
+  flutter_foreground_task: ^9.2.2
+  # Renders the local notification when a new alert event is found by polling.
   flutter_local_notifications: ^22.0.1
 
 dev_dependencies:
@@ -56,6 +58,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # Generates the Android launcher icon (mipmaps + adaptive icon) from
+  # assets/icon/. Run `dart run flutter_launcher_icons` after changing them.
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/foreground.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -72,6 +83,8 @@ flutter:
   # assets:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/icon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

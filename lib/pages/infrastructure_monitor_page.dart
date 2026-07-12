@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../models/homelab_module.dart';
+import '../models/modulabs_module.dart';
 import '../models/telemetry_data.dart';
 import '../services/module_service.dart';
 import '../services/telemetry_service.dart';
@@ -30,7 +30,7 @@ class InfrastructureMonitorPage extends StatefulWidget {
 }
 
 class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
-  List<HomelabModule> _modules = [];
+  List<ModulabsModule> _modules = [];
   final Set<String> _togglingIds = {};
   bool _loading = true;
   String? _error;
@@ -97,13 +97,13 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Impossible de charger les modules depuis le Homelab.';
+        _error = 'Impossible de charger les modules depuis Modulabs.';
         _loading = false;
       });
     }
   }
 
-  Future<void> _toggleModule(HomelabModule module) async {
+  Future<void> _toggleModule(ModulabsModule module) async {
     setState(() => _togglingIds.add(module.id));
     try {
       if (module.isActive) {
@@ -156,7 +156,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
               _notificationPreference = preference;
             });
           },
-          homelabUrl: widget.baseUrl,
+          modulabsUrl: widget.baseUrl,
           onDisconnect: widget.onDisconnect,
           onLogout: widget.onLogout,
         );
@@ -182,7 +182,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Homelab Monitor'),
+        title: const Text('Modulabs'),
         centerTitle: true,
         elevation: 0,
         actions: [

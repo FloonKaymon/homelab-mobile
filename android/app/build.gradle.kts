@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.app_homelab"
+    namespace = "com.example.app_modulabs"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.app_homelab"
+        applicationId = "com.example.app_modulabs"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -47,13 +47,4 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-}
-
-// flutter_secure_storage (via androidx.security:security-crypto) pulls in
-// com.google.crypto.tink:tink-android, while unifiedpush's Web Push crypto
-// dependency pulls in the plain (non-Android) tink artifact - both ship the
-// same classes, causing a duplicate-class build failure. Keep only the
-// Android variant.
-configurations.all {
-    exclude(group = "com.google.crypto.tink", module = "tink")
 }

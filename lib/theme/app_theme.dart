@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/homelab_module.dart';
+import '../models/modulabs_module.dart';
 
 /// Color palette ported from the homelab-frontend's DaisyUI "night" theme
 /// (see homelab-frontend/src/app/App.tsx `data-theme="night"`), so the
@@ -45,13 +45,13 @@ class AppColors {
   };
 }
 
-/// "Homelab" wordmark rendered with the same primary-to-accent gradient
+/// "Modulabs" wordmark rendered with the same primary-to-accent gradient
 /// used for the brand heading in the web sidebar (`from-primary to-accent`).
-class HomelabWordmark extends StatelessWidget {
+class ModulabsWordmark extends StatelessWidget {
   final double fontSize;
   final String text;
 
-  const HomelabWordmark({super.key, this.fontSize = 28, this.text = 'Homelab'});
+  const ModulabsWordmark({super.key, this.fontSize = 28, this.text = 'Modulabs'});
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +71,7 @@ class HomelabWordmark extends StatelessWidget {
   }
 }
 
-ThemeData buildHomelabTheme() {
+ThemeData buildModulabsTheme() {
   const colorScheme = ColorScheme(
     brightness: Brightness.dark,
     primary: AppColors.primary,

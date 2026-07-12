@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
-/// Login screen shown once the app is linked to a Homelab server but no
+/// Login screen shown once the app is linked to a Modulabs server but no
 /// valid session is stored yet.
 class LoginPage extends StatefulWidget {
   final String baseUrl;
@@ -62,7 +62,7 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => _errorMessage = 'Email ou mot de passe incorrect.');
         break;
       case LoginResult.unreachable:
-        setState(() => _errorMessage = 'Impossible de joindre le serveur Homelab.');
+        setState(() => _errorMessage = 'Impossible de joindre le serveur Modulabs.');
         break;
       case LoginResult.error:
         setState(() => _errorMessage = 'Une erreur est survenue. Réessayez.');
@@ -86,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 16),
               const Icon(Icons.lock_outline, size: 64, color: AppColors.primary),
               const SizedBox(height: 16),
-              const HomelabWordmark(fontSize: 28),
+              const ModulabsWordmark(fontSize: 28),
               const SizedBox(height: 8),
               Text(
                 widget.baseUrl,
@@ -147,7 +147,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: _loading ? null : widget.onChangeServer,
-                child: const Text('Changer de serveur Homelab'),
+                child: const Text('Changer de serveur Modulabs'),
               ),
             ],
           ),

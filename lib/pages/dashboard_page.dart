@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/homelab_module.dart';
+import '../models/modulabs_module.dart';
 import '../models/telemetry_data.dart';
 import '../theme/app_theme.dart';
 
 class DashboardPage extends StatelessWidget {
-  final List<HomelabModule> modules;
+  final List<ModulabsModule> modules;
   final bool loading;
   final String? error;
   final Future<void> Function() onRetry;
@@ -299,7 +299,7 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildModulePreview(HomelabModule module) {
+  Widget _buildModulePreview(ModulabsModule module) {
     final (label, color, icon) = statusVisuals(module.status);
     return Card(
       color: AppColors.base100,

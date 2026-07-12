@@ -1,16 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'pages/connection_setup_page.dart';
 import 'pages/infrastructure_monitor_page.dart';
 import 'pages/login_page.dart';
+import 'services/alert_polling_service.dart';
 import 'services/auth_service.dart';
-import 'services/homelab_connection.dart';
-import 'services/push_service.dart';
+import 'services/modulabs_connection.dart';
 import 'theme/app_theme.dart';
 
 void main() {
+  FlutterForegroundTask.initCommunicationPort();
+  AlertPollingService.initialize();
   runApp(const MyApp());
 }
 
@@ -20,8 +23,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Homelab Monitor',
-      theme: buildHomelabTheme(),
+      title: 'Modulabs',
+      theme: buildModulabsTheme(),
       home: const ConnectionGate(),
     );
   }
@@ -52,7 +55,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
   }
 
   Future<void> _bootstrap() async {
-    final url = await HomelabConnection.getSavedUrl();
+    final url = await ModulabsConnection.getSavedUrl();
     if (url == null) {
       if (!mounted) return;
       setState(() => _stage = _GateStage.needsUrl);
@@ -67,7 +70,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
         _token = token;
         _stage = _GateStage.ready;
       });
-      unawaited(PushService.initialize(baseUrl: url, token: token));
+      unawaited(AlertPollingService.start(baseUrl: url, token: token));
       return;
     }
 
@@ -93,16 +96,16 @@ class _ConnectionGateState extends State<ConnectionGate> {
       _stage = _GateStage.ready;
     });
     if (token != null) {
-      unawaited(PushService.initialize(baseUrl: _baseUrl!, token: token));
+      unawaited(AlertPollingService.start(baseUrl: _baseUrl!, token: token));
     }
   }
 
   Future<void> _onChangeServer() async {
     if (_baseUrl != null && _token != null) {
-      await PushService.teardown(_baseUrl!, _token!);
+      await AlertPollingService.stop();
     }
     await AuthService.logout();
-    await HomelabConnection.clear();
+    await ModulabsConnection.clear();
     if (!mounted) return;
     setState(() {
       _baseUrl = null;
@@ -113,7 +116,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
 
   Future<void> _onLogout() async {
     if (_baseUrl != null && _token != null) {
-      await PushService.teardown(_baseUrl!, _token!);
+      await AlertPollingService.stop();
     }
     await AuthService.logout();
     if (!mounted) return;

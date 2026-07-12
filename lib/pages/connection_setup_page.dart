@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../services/homelab_connection.dart';
+import '../services/modulabs_connection.dart';
 import '../theme/app_theme.dart';
 
 /// First screen shown to the user: lets them enter the URL of their
-/// Homelab instance and validates that it is actually reachable before
+/// Modulabs instance and validates that it is actually reachable before
 /// letting the rest of the app use it.
 class ConnectionSetupPage extends StatefulWidget {
   final String? initialUrl;
@@ -38,7 +38,7 @@ class _ConnectionSetupPageState extends State<ConnectionSetupPage> {
   }
 
   Future<void> _connect() async {
-    final normalized = HomelabConnection.normalize(_urlController.text);
+    final normalized = ModulabsConnection.normalize(_urlController.text);
     if (normalized == null) {
       setState(() => _errorMessage = 'Adresse invalide. Exemple : http://192.168.1.10:8080');
       return;
@@ -49,7 +49,7 @@ class _ConnectionSetupPageState extends State<ConnectionSetupPage> {
       _errorMessage = null;
     });
 
-    final result = await HomelabConnection.testConnection(normalized);
+    final result = await ModulabsConnection.testConnection(normalized);
 
     if (!mounted) return;
 
@@ -57,17 +57,17 @@ class _ConnectionSetupPageState extends State<ConnectionSetupPage> {
 
     switch (result) {
       case ConnectionResult.success:
-        await HomelabConnection.saveUrl(normalized);
+        await ModulabsConnection.saveUrl(normalized);
         if (!mounted) return;
         widget.onConnected(normalized);
         break;
       case ConnectionResult.unreachable:
         setState(() => _errorMessage =
-            'Impossible de joindre cette adresse. Vérifiez que le homelab est démarré et accessible depuis cet appareil.');
+            'Impossible de joindre cette adresse. Vérifiez que Modulabs est démarré et accessible depuis cet appareil.');
         break;
-      case ConnectionResult.notHomelab:
+      case ConnectionResult.notModulabs:
         setState(() => _errorMessage =
-            'Cette adresse a répondu mais ne semble pas être une instance Homelab.');
+            'Cette adresse a répondu mais ne semble pas être une instance Modulabs.');
         break;
       case ConnectionResult.invalidUrl:
         setState(() => _errorMessage = 'Adresse invalide. Exemple : http://192.168.1.10:8080');
@@ -79,7 +79,7 @@ class _ConnectionSetupPageState extends State<ConnectionSetupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connexion au Homelab'),
+        title: const Text('Connexion à Modulabs'),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -91,10 +91,10 @@ class _ConnectionSetupPageState extends State<ConnectionSetupPage> {
               const SizedBox(height: 24),
               const Icon(Icons.dns_outlined, size: 64, color: AppColors.primary),
               const SizedBox(height: 16),
-              const HomelabWordmark(fontSize: 30),
+              const ModulabsWordmark(fontSize: 30),
               const SizedBox(height: 8),
               Text(
-                "Entrez l'adresse de votre serveur Homelab pour commencer le suivi.",
+                "Entrez l'adresse de votre serveur Modulabs pour commencer le suivi.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: AppColors.faint(0.6)),
               ),
@@ -106,7 +106,7 @@ class _ConnectionSetupPageState extends State<ConnectionSetupPage> {
                 enabled: !_testing,
                 onSubmitted: (_) => _connect(),
                 decoration: const InputDecoration(
-                  labelText: 'Adresse du Homelab',
+                  labelText: 'Adresse de Modulabs',
                   hintText: 'http://192.168.1.10:8080',
                   prefixIcon: Icon(Icons.link),
                 ),
