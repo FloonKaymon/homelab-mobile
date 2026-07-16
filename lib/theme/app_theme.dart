@@ -37,11 +37,11 @@ class AppColors {
 /// dashboard overview and the modules list so the two stay in sync.
 (String, Color, IconData) statusVisuals(ModuleRunStatus status) {
   return switch (status) {
-    ModuleRunStatus.active => ('Actif', AppColors.success, Icons.check_circle),
-    ModuleRunStatus.inactive => ('Arrêté', AppColors.faint(0.45), Icons.pause_circle),
-    ModuleRunStatus.installing => ('Installation', AppColors.warning, Icons.hourglass_top),
-    ModuleRunStatus.error => ('Erreur', AppColors.error, Icons.error),
-    ModuleRunStatus.unknown => ('Inconnu', AppColors.faint(0.3), Icons.help_outline),
+    ModuleRunStatus.active => ('Active', AppColors.success, Icons.check_circle),
+    ModuleRunStatus.inactive => ('Stopped', AppColors.faint(0.45), Icons.pause_circle),
+    ModuleRunStatus.installing => ('Installing', AppColors.warning, Icons.hourglass_top),
+    ModuleRunStatus.error => ('Error', AppColors.error, Icons.error),
+    ModuleRunStatus.unknown => ('Unknown', AppColors.faint(0.3), Icons.help_outline),
   };
 }
 

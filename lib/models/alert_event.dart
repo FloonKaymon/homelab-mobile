@@ -1,41 +1,39 @@
-/// Mirrors the backend's `AlertEvent` entity (com.homelab.core.model.alert.AlertEvent),
-/// as returned by the alert history endpoint. Fields are denormalized at
+/// Mirrors the backend's `AlertEventDto` (com.homelab.core.api.dto.alert.AlertEventDto),
+/// as returned by `GET /api/alerts/events`. Fields are denormalized at
 /// trigger time on the backend, so they stay meaningful even if the
 /// underlying rule is later edited or deleted.
 class AlertEvent {
   final int id;
+  final int ruleId;
   final String ruleName;
   final String metric;
-  final String operator;
-  final double threshold;
   final String severity;
-  final double triggerValue;
+  final double threshold;
+  final double value;
+  final String message;
   final String triggeredAt;
-  final bool resolved;
 
   const AlertEvent({
     required this.id,
+    required this.ruleId,
     required this.ruleName,
     required this.metric,
-    required this.operator,
-    required this.threshold,
     required this.severity,
-    required this.triggerValue,
+    required this.threshold,
+    required this.value,
+    required this.message,
     required this.triggeredAt,
-    required this.resolved,
   });
 
   factory AlertEvent.fromJson(Map<String, dynamic> json) => AlertEvent(
         id: json['id'] as int,
+        ruleId: json['ruleId'] as int? ?? 0,
         ruleName: json['ruleName'] as String? ?? '',
         metric: json['metric'] as String? ?? '',
-        operator: json['operator'] as String? ?? '',
-        threshold: (json['threshold'] as num?)?.toDouble() ?? 0,
         severity: json['severity'] as String? ?? 'INFO',
-        triggerValue: (json['triggerValue'] as num?)?.toDouble() ?? 0,
+        threshold: (json['threshold'] as num?)?.toDouble() ?? 0,
+        value: (json['value'] as num?)?.toDouble() ?? 0,
+        message: json['message'] as String? ?? '',
         triggeredAt: json['triggeredAt'] as String? ?? '',
-        resolved: json['resolved'] as bool? ?? false,
       );
-
-  String get operatorSymbol => operator == 'BELOW' ? '<' : '>';
 }

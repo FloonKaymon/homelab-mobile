@@ -23,10 +23,10 @@ class ModuleService {
 
     if (response.statusCode == 401) throw UnauthorizedException();
     if (response.statusCode != 200) {
-      throw Exception('Le serveur a répondu avec le code ${response.statusCode}.');
+      throw Exception('The server responded with code ${response.statusCode}.');
     }
 
-    final list = jsonDecode(response.body) as List;
+    final list = jsonDecode(utf8.decode(response.bodyBytes)) as List;
     return list.map((e) => ModulabsModule.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -44,12 +44,12 @@ class ModuleService {
 
     if (response.statusCode == 401) throw UnauthorizedException();
     if (response.statusCode != 200) {
-      throw Exception(start ? 'Impossible de démarrer le module.' : "Impossible d'arrêter le module.");
+      throw Exception(start ? 'Unable to start the module.' : 'Unable to stop the module.');
     }
 
     final body = jsonDecode(response.body);
     if (body is Map && body['success'] != true) {
-      throw Exception('Le serveur a refusé cette action.');
+      throw Exception('The server rejected this action.');
     }
   }
 }

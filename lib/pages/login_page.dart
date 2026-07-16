@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import 'forgot_password_page.dart';
 
 /// Login screen shown once the app is linked to a Modulabs server but no
 /// valid session is stored yet.
@@ -40,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Veuillez renseigner votre email et votre mot de passe.');
+      setState(() => _errorMessage = 'Please enter your email and password.');
       return;
     }
 
@@ -59,13 +60,13 @@ class _LoginPageState extends State<LoginPage> {
         widget.onLoggedIn();
         break;
       case LoginResult.invalidCredentials:
-        setState(() => _errorMessage = 'Email ou mot de passe incorrect.');
+        setState(() => _errorMessage = 'Incorrect email or password.');
         break;
       case LoginResult.unreachable:
-        setState(() => _errorMessage = 'Impossible de joindre le serveur Modulabs.');
+        setState(() => _errorMessage = 'Unable to reach the Modulabs server.');
         break;
       case LoginResult.error:
-        setState(() => _errorMessage = 'Une erreur est survenue. Réessayez.');
+        setState(() => _errorMessage = 'Something went wrong. Please try again.');
         break;
     }
   }
@@ -74,7 +75,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connexion'),
+        title: const Text('Sign In'),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -112,7 +113,7 @@ class _LoginPageState extends State<LoginPage> {
                 enabled: !_loading,
                 onSubmitted: (_) => _login(),
                 decoration: InputDecoration(
-                  labelText: 'Mot de passe',
+                  labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -141,13 +142,21 @@ class _LoginPageState extends State<LoginPage> {
                             color: AppColors.primaryContent,
                           ),
                         )
-                      : const Text('Se connecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      : const Text('Sign in', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _loading
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => ForgotPasswordPage(baseUrl: widget.baseUrl)),
+                        ),
+                child: const Text('Forgot password?'),
+              ),
               TextButton(
                 onPressed: _loading ? null : widget.onChangeServer,
-                child: const Text('Changer de serveur Modulabs'),
+                child: const Text('Change Modulabs server'),
               ),
             ],
           ),

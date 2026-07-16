@@ -45,7 +45,7 @@ class DashboardPage extends StatelessWidget {
               const SizedBox(height: 12),
               Text(error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: onRetry, child: const Text('Réessayer')),
+              ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
             ],
           ),
         ),
@@ -62,6 +62,8 @@ class DashboardPage extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
             _buildResourcesSection(context),
+            const SizedBox(height: 24),
+            _buildStorageBreakdown(context),
             const SizedBox(height: 24),
             _buildStatsGrid(context),
             const SizedBox(height: 24),
@@ -97,7 +99,7 @@ class DashboardPage extends StatelessWidget {
               Icon(Icons.error_outline, color: AppColors.faint(0.4)),
               const SizedBox(width: 12),
               Expanded(child: Text(telemetryError!)),
-              TextButton(onPressed: onRetryTelemetry, child: const Text('Réessayer')),
+              TextButton(onPressed: onRetryTelemetry, child: const Text('Retry')),
             ],
           ),
         ),
@@ -114,7 +116,7 @@ class DashboardPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'RESSOURCES SYSTÈME',
+              'SYSTEM RESOURCES',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -132,22 +134,22 @@ class DashboardPage extends StatelessWidget {
         _buildResourceCard(
           title: 'CPU',
           icon: Icons.memory,
-          fraction: (data.cpuPercent / 100).clamp(0, 1).toDouble(),
-          subtitle: '${data.cpuPercent.toStringAsFixed(1)}%',
+          fraction: (data.cpu.totalPercent / 100).clamp(0, 1).toDouble(),
+          subtitle: '${data.cpu.totalPercent.toStringAsFixed(1)}%',
         ),
         const SizedBox(height: 12),
         _buildResourceCard(
-          title: 'Mémoire',
+          title: 'Memory',
           icon: Icons.developer_board,
           fraction: data.ram.usedFraction,
-          subtitle: '${data.ram.usedGb.toStringAsFixed(1)} / ${data.ram.totalGb.toStringAsFixed(1)} Go',
+          subtitle: '${data.ram.usedGb.toStringAsFixed(1)} / ${data.ram.totalGb.toStringAsFixed(1)} GB',
         ),
         const SizedBox(height: 12),
         _buildResourceCard(
-          title: 'Stockage',
+          title: 'Storage',
           icon: Icons.storage,
           fraction: data.disk.usedFraction,
-          subtitle: '${data.disk.usedGb.toStringAsFixed(1)} / ${data.disk.totalGb.toStringAsFixed(1)} Go',
+          subtitle: '${data.disk.usedGb.toStringAsFixed(1)} / ${data.disk.totalGb.toStringAsFixed(1)} GB',
         ),
       ],
     );
@@ -203,6 +205,126 @@ class DashboardPage extends StatelessWidget {
     return AppColors.success;
   }
 
+  // Fixed categorical order, ported from homelab-frontend's ModuleStorageBar
+  // (its own DaisyUI theme tokens), so segment colors line up conceptually
+  // with the web dashboard.
+  static const _moduleStorageColors = [
+    AppColors.primary,
+    AppColors.secondary,
+    AppColors.accent,
+    AppColors.info,
+    AppColors.success,
+    AppColors.warning,
+    AppColors.error,
+    AppColors.neutral,
+  ];
+
+  Widget _buildStorageBreakdown(BuildContext context) {
+    final data = telemetry;
+    if (data == null) return const SizedBox.shrink();
+
+    final sortedModules = data.perModuleStorage.where((m) => m.storageGb > 0).toList()
+      ..sort((a, b) => b.storageGb.compareTo(a.storageGb));
+    final maxDirectSlots = _moduleStorageColors.length;
+    final visibleModules = sortedModules.take(maxDirectSlots - 1).toList();
+    final overflowModules = sortedModules.skip(maxDirectSlots - 1).toList();
+    final overflowGb = overflowModules.fold(0.0, (sum, m) => sum + m.storageGb);
+
+    final segments = <(String, double, Color)>[
+      ('Homelab Core', data.disk.coreStorageUsedGb, AppColors.faint(0.25)),
+      for (var i = 0; i < visibleModules.length; i++)
+        (visibleModules[i].name, visibleModules[i].storageGb, _moduleStorageColors[i]),
+      if (overflowModules.isNotEmpty)
+        ('Other (${overflowModules.length})', overflowGb, _moduleStorageColors.last),
+    ];
+
+    final total = segments.fold(0.0, (sum, s) => sum + s.$2);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'STORAGE BREAKDOWN',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+            color: AppColors.faint(0.5),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          color: AppColors.base100,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AppColors.faint(0.05)),
+          ),
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: total <= 0
+                ? Text(
+                    'No storage data available.',
+                    style: TextStyle(fontSize: 13, color: AppColors.faint(0.4)),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: SizedBox(
+                          height: 10,
+                          child: Row(
+                            children: [
+                              for (final segment in segments)
+                                Expanded(
+                                  flex: (segment.$2 * 1e6).round().clamp(1, 1 << 30),
+                                  child: Container(color: segment.$3),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 6,
+                        children: [
+                          for (final segment in segments)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(color: segment.$3, shape: BoxShape.circle),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${segment.$1}: ',
+                                  style: TextStyle(fontSize: 12, color: AppColors.faint(0.7)),
+                                ),
+                                Text(
+                                  _formatMb(segment.$2),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatMb(double gb) {
+    final mb = gb * 1024;
+    return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
+  }
+
   Widget _buildStatsGrid(BuildContext context) {
     return GridView.count(
       crossAxisCount: 2,
@@ -213,14 +335,14 @@ class DashboardPage extends StatelessWidget {
       children: [
         _buildStatCard(
           context,
-          title: 'Modules Actifs',
+          title: 'Active Modules',
           value: _activeModulesCount.toString(),
           icon: Icons.check_circle,
           color: AppColors.success,
         ),
         _buildStatCard(
           context,
-          title: 'Modules Arrêtés',
+          title: 'Stopped Modules',
           value: (modules.length - _activeModulesCount).toString(),
           icon: Icons.pause_circle,
           color: AppColors.faint(0.5),
@@ -276,7 +398,7 @@ class DashboardPage extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.only(top: 32),
         child: Center(
-          child: Text('Aucun module trouvé.', style: TextStyle(color: AppColors.faint(0.4))),
+          child: Text('No modules found.', style: TextStyle(color: AppColors.faint(0.4))),
         ),
       );
     }
@@ -285,7 +407,7 @@ class DashboardPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Aperçu des Modules',
+          'Modules Overview',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),

@@ -6,6 +6,7 @@ import '../models/modulabs_module.dart';
 import '../models/telemetry_data.dart';
 import '../services/module_service.dart';
 import '../services/telemetry_service.dart';
+import 'admin_page.dart';
 import 'dashboard_page.dart';
 import 'modules_page.dart';
 import 'events_page.dart';
@@ -14,6 +15,7 @@ import 'settings_page.dart' show SettingsPage, NotificationPreference;
 class InfrastructureMonitorPage extends StatefulWidget {
   final String baseUrl;
   final String token;
+  final bool isAdmin;
   final VoidCallback onDisconnect;
   final VoidCallback onLogout;
 
@@ -21,6 +23,7 @@ class InfrastructureMonitorPage extends StatefulWidget {
     super.key,
     required this.baseUrl,
     required this.token,
+    required this.isAdmin,
     required this.onDisconnect,
     required this.onLogout,
   });
@@ -74,7 +77,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
       if (!mounted) return;
       setState(() {
         _telemetryLoading = false;
-        _telemetryError = 'Télémétrie indisponible.';
+        _telemetryError = 'Telemetry unavailable.';
       });
     }
   }
@@ -97,7 +100,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Impossible de charger les modules depuis Modulabs.';
+        _error = 'Unable to load modules from Modulabs.';
         _loading = false;
       });
     }
@@ -147,7 +150,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
           onRetry: _loadModules,
         );
       case 2:
-        return const EventsPage();
+        return EventsPage(baseUrl: widget.baseUrl, token: widget.token, onLogout: widget.onLogout);
       case 3:
         return SettingsPage(
           currentPreference: _notificationPreference,
@@ -157,8 +160,23 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
             });
           },
           modulabsUrl: widget.baseUrl,
+          token: widget.token,
           onDisconnect: widget.onDisconnect,
           onLogout: widget.onLogout,
+        );
+      case 4:
+        if (widget.isAdmin) {
+          return AdminPage(baseUrl: widget.baseUrl, token: widget.token, onLogout: widget.onLogout);
+        }
+        return DashboardPage(
+          modules: _modules,
+          loading: _loading,
+          error: _error,
+          onRetry: _loadModules,
+          telemetry: _telemetry,
+          telemetryLoading: _telemetryLoading,
+          telemetryError: _telemetryError,
+          onRetryTelemetry: _loadTelemetry,
         );
       default:
         return DashboardPage(
@@ -201,23 +219,28 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
             _selectedIndex = index;
           });
         },
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.widgets),
             label: 'Modules',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.history),
-            label: 'Événements',
+            label: 'Events',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: 'Paramètres',
+            label: 'Settings',
           ),
+          if (widget.isAdmin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
         ],
       ),
     );

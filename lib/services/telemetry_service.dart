@@ -19,12 +19,12 @@ class TelemetryService {
 
     if (response.statusCode == 401) throw UnauthorizedException();
     if (response.statusCode != 200) {
-      throw Exception('Le serveur a répondu avec le code ${response.statusCode}.');
+      throw Exception('The server responded with code ${response.statusCode}.');
     }
 
     final body = jsonDecode(response.body);
     if (body is! Map<String, dynamic>) {
-      throw Exception('Télémétrie indisponible pour le moment.');
+      throw Exception('Telemetry is currently unavailable.');
     }
 
     return TelemetryData.fromJson(body);

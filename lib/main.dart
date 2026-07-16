@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import 'pages/change_password_page.dart';
 import 'pages/connection_setup_page.dart';
 import 'pages/infrastructure_monitor_page.dart';
 import 'pages/login_page.dart';
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-enum _GateStage { loading, needsUrl, needsLogin, ready }
+enum _GateStage { loading, needsUrl, needsLogin, needsPasswordChange, ready }
 
 /// Drives the app's startup flow through three steps:
 /// 1. no server URL saved -> [ConnectionSetupPage]
@@ -47,6 +48,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
   _GateStage _stage = _GateStage.loading;
   String? _baseUrl;
   String? _token;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -63,11 +65,25 @@ class _ConnectionGateState extends State<ConnectionGate> {
     }
 
     final token = await AuthService.getToken();
-    if (token != null && await AuthService.verifyToken(url, token)) {
+    // `/api/auth/me` doubles as the token-validity probe: a non-null result
+    // means the stored session is still accepted, and it carries `isAdmin`
+    // in the same round-trip.
+    final currentUser = token != null ? await AuthService.fetchCurrentUser(url, token) : null;
+    if (token != null && currentUser != null) {
       if (!mounted) return;
+      if (currentUser.mustResetPassword) {
+        setState(() {
+          _baseUrl = url;
+          _token = token;
+          _isAdmin = currentUser.isAdmin;
+          _stage = _GateStage.needsPasswordChange;
+        });
+        return;
+      }
       setState(() {
         _baseUrl = url;
         _token = token;
+        _isAdmin = currentUser.isAdmin;
         _stage = _GateStage.ready;
       });
       unawaited(AlertPollingService.start(baseUrl: url, token: token));
@@ -91,12 +107,30 @@ class _ConnectionGateState extends State<ConnectionGate> {
 
   Future<void> _onLoggedIn() async {
     final token = await AuthService.getToken();
+    final currentUser = token != null ? await AuthService.fetchCurrentUser(_baseUrl!, token) : null;
+    if (!mounted) return;
+    if (currentUser?.mustResetPassword ?? false) {
+      setState(() {
+        _token = token;
+        _isAdmin = currentUser?.isAdmin ?? false;
+        _stage = _GateStage.needsPasswordChange;
+      });
+      return;
+    }
     setState(() {
       _token = token;
+      _isAdmin = currentUser?.isAdmin ?? false;
       _stage = _GateStage.ready;
     });
     if (token != null) {
       unawaited(AlertPollingService.start(baseUrl: _baseUrl!, token: token));
+    }
+  }
+
+  Future<void> _onPasswordChanged() async {
+    setState(() => _stage = _GateStage.ready);
+    if (_baseUrl != null && _token != null) {
+      unawaited(AlertPollingService.start(baseUrl: _baseUrl!, token: _token!));
     }
   }
 
@@ -110,6 +144,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
     setState(() {
       _baseUrl = null;
       _token = null;
+      _isAdmin = false;
       _stage = _GateStage.needsUrl;
     });
   }
@@ -122,6 +157,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
     if (!mounted) return;
     setState(() {
       _token = null;
+      _isAdmin = false;
       _stage = _GateStage.needsLogin;
     });
   }
@@ -139,10 +175,18 @@ class _ConnectionGateState extends State<ConnectionGate> {
           onLoggedIn: _onLoggedIn,
           onChangeServer: _onChangeServer,
         );
+      case _GateStage.needsPasswordChange:
+        return ChangePasswordPage(
+          baseUrl: _baseUrl!,
+          token: _token!,
+          forced: true,
+          onDone: _onPasswordChanged,
+        );
       case _GateStage.ready:
         return InfrastructureMonitorPage(
           baseUrl: _baseUrl!,
           token: _token!,
+          isAdmin: _isAdmin,
           onDisconnect: _onChangeServer,
           onLogout: _onLogout,
         );

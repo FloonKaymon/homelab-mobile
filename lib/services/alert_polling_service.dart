@@ -10,6 +10,7 @@ import 'auth_service.dart';
 
 const _serviceId = 300;
 const _baseUrlKey = 'modulabs_poll_base_url';
+const _sinceKey = 'modulabs_alert_events_since';
 const _seenIdsKey = 'modulabs_seen_alert_event_ids';
 
 /// Runs the alert-polling loop as an Android foreground service so it keeps
@@ -17,9 +18,6 @@ const _seenIdsKey = 'modulabs_seen_alert_event_ids';
 /// shows a local notification for each one - even while the app is
 /// backgrounded or has been killed by the OS. Started on login, stopped on
 /// logout/server change (see `main.dart`).
-///
-/// This replaces the earlier ntfy/UnifiedPush push design: the mobile app
-/// now pulls, the Modulabs backend doesn't need to know this device exists.
 class AlertPollingService {
   AlertPollingService._();
 
@@ -28,8 +26,8 @@ class AlertPollingService {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'modulabs_alert_polling',
-        channelName: 'Surveillance des alertes Modulabs',
-        channelDescription: 'Vérifie les nouvelles alertes toutes les minutes.',
+        channelName: 'Modulabs Alert Monitoring',
+        channelDescription: 'Checks for new alerts every minute.',
       ),
       iosNotificationOptions: const IOSNotificationOptions(),
       foregroundTaskOptions: ForegroundTaskOptions(
@@ -67,18 +65,18 @@ class AlertPollingService {
       serviceId: _serviceId,
       serviceTypes: const [ForegroundServiceTypes.dataSync],
       notificationTitle: 'Modulabs',
-      notificationText: 'Surveillance des alertes en cours...',
+      notificationText: 'Monitoring alerts...',
       callback: startCallback,
     );
   }
 
-  /// Stops the polling service and forgets which events were already seen,
-  /// so re-login (possibly to a different Modulabs instance) starts from a
-  /// clean slate.
+  /// Stops the polling service and forgets the polling cursor, so re-login
+  /// (possibly to a different Modulabs instance) starts from a clean slate.
   static Future<void> stop() async {
     await FlutterForegroundTask.stopService();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_baseUrlKey);
+    await prefs.remove(_sinceKey);
     await prefs.remove(_seenIdsKey);
   }
 }
@@ -123,28 +121,36 @@ class _AlertPollingTaskHandler extends TaskHandler {
     final token = await AuthService.getToken();
     if (baseUrl == null || token == null) return;
 
-    List<AlertEvent> events;
+    final since = prefs.getString(_sinceKey);
+
+    AlertEventsPage page;
     try {
-      events = await AlertEventsService.fetchRecentEvents(baseUrl, token, limit: 20);
+      page = await AlertEventsService.fetchEvents(baseUrl, token, since: since);
     } catch (_) {
       // Offline, Modulabs unreachable, expired token, etc. - just try again
       // next minute.
       return;
     }
 
-    final seenIds = prefs.getStringList(_seenIdsKey);
-    final alreadySynced = seenIds != null;
-    final seenSet = (seenIds ?? const <String>[]).toSet();
+    // Anchor on the server's own clock, not the phone's, so a clock
+    // difference between the two can't cause missed or duplicated events.
+    if (page.serverTime.isNotEmpty) {
+      await prefs.setString(_sinceKey, page.serverTime);
+    }
 
-    final newEvents = events.where((e) => !seenSet.contains(e.id.toString())).toList();
+    // Events are emitted edge-trigger (once per threshold crossing), but
+    // dedupe by id as a safety net in case of a retry/overlap.
+    final seenIds = prefs.getStringList(_seenIdsKey) ?? const <String>[];
+    final seenSet = seenIds.toSet();
+    final newEvents = page.events.where((e) => !seenSet.contains(e.id.toString())).toList();
 
-    final updatedIds = [...?seenIds, ...newEvents.map((e) => e.id.toString())];
+    final updatedIds = [...seenIds, ...newEvents.map((e) => e.id.toString())];
     final capped = updatedIds.length > 300 ? updatedIds.sublist(updatedIds.length - 300) : updatedIds;
     await prefs.setStringList(_seenIdsKey, capped);
 
-    // First sync after (re)starting: learn the existing history silently
-    // instead of firing a notification for every already-known past event.
-    if (!alreadySynced) return;
+    // First poll after (re)starting: `since` was null, so this just seeds
+    // the server-time cursor instead of notifying for the entire history.
+    if (since == null) return;
 
     for (final event in newEvents) {
       await _notify(event);
@@ -155,24 +161,32 @@ class _AlertPollingTaskHandler extends TaskHandler {
     await _ensureChannel();
 
     final title = switch (event.severity) {
-      'CRITICAL' => 'Alerte critique',
-      'WARNING' => 'Avertissement',
-      _ => 'Alerte Modulabs',
+      'CRITICAL' => 'Critical alert',
+      'HIGH' => 'Important alert',
+      'MEDIUM' => 'Warning',
+      'LOW' => 'Minor alert',
+      _ => 'Modulabs alert',
     };
-    final body = '${event.ruleName}: ${event.metric} ${event.operatorSymbol} '
-        '${event.threshold} (valeur: ${event.triggerValue.toStringAsFixed(1)})';
+    final body = event.message.isNotEmpty
+        ? event.message
+        : '${event.ruleName}: ${event.metric} = ${event.value.toStringAsFixed(1)} (threshold ${event.threshold})';
+    final importance = switch (event.severity) {
+      'CRITICAL' || 'HIGH' => Importance.high,
+      'MEDIUM' => Importance.defaultImportance,
+      _ => Importance.low,
+    };
 
     await _notifications.show(
       id: event.id,
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'modulabs_alerts',
-          'Alertes Modulabs',
-          channelDescription: 'Notifications de dépassement de seuil du Modulabs',
-          importance: Importance.high,
-          priority: Priority.high,
+          'Modulabs Alerts',
+          channelDescription: 'Modulabs threshold-breach notifications',
+          importance: importance,
+          priority: importance == Importance.high ? Priority.high : Priority.defaultPriority,
         ),
       ),
     );
@@ -190,8 +204,8 @@ class _AlertPollingTaskHandler extends TaskHandler {
     await androidPlugin?.createNotificationChannel(
       const AndroidNotificationChannel(
         'modulabs_alerts',
-        'Alertes Modulabs',
-        description: 'Notifications de dépassement de seuil du Modulabs',
+        'Modulabs Alerts',
+        description: 'Modulabs threshold-breach notifications',
         importance: Importance.high,
       ),
     );

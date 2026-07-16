@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/modulabs_connection.dart';
 import '../theme/app_theme.dart';
+import 'change_password_page.dart';
 
 enum NotificationPreference {
   all,
@@ -13,6 +15,7 @@ class SettingsPage extends StatefulWidget {
   final NotificationPreference currentPreference;
   final Function(NotificationPreference) onPreferenceChanged;
   final String modulabsUrl;
+  final String token;
   final VoidCallback onDisconnect;
   final VoidCallback onLogout;
 
@@ -21,6 +24,7 @@ class SettingsPage extends StatefulWidget {
     required this.currentPreference,
     required this.onPreferenceChanged,
     required this.modulabsUrl,
+    required this.token,
     required this.onDisconnect,
     required this.onLogout,
   });
@@ -32,6 +36,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late NotificationPreference _selectedPreference;
   String? _userEmail;
+  String? _connectionName;
 
   @override
   void initState() {
@@ -40,23 +45,34 @@ class _SettingsPageState extends State<SettingsPage> {
     AuthService.getUserEmail().then((email) {
       if (mounted) setState(() => _userEmail = email);
     });
+    _loadConnectionName();
+  }
+
+  Future<void> _loadConnectionName() async {
+    final activeId = await ModulabsConnection.getActiveConnectionId();
+    if (activeId == null) return;
+    final saved = await ModulabsConnection.getSavedConnections();
+    final match = saved.where((c) => c.id == activeId);
+    if (mounted && match.isNotEmpty) {
+      setState(() => _connectionName = match.first.name);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
           const Text(
-            'Paramètres',
+            'Settings',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 32),
           const Text(
-            'Connexion',
+            'Connection',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
@@ -69,25 +85,40 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildNotificationOption(
-            title: 'Tout',
-            subtitle: 'Recevoir toutes les notifications',
-            value: NotificationPreference.all,
-          ),
-          const SizedBox(height: 12),
-          _buildNotificationOption(
-            title: 'Alertes seulement',
-            subtitle: 'Recevoir uniquement les alertes importantes',
-            value: NotificationPreference.alertsOnly,
-          ),
-          const SizedBox(height: 12),
-          _buildNotificationOption(
-            title: 'Aucunes',
-            subtitle: 'Désactiver toutes les notifications',
-            value: NotificationPreference.none,
+          RadioGroup<NotificationPreference>(
+            groupValue: _selectedPreference,
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedPreference = value);
+                widget.onPreferenceChanged(value);
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildNotificationOption(
+                  title: 'All',
+                  subtitle: 'Receive every notification',
+                  value: NotificationPreference.all,
+                ),
+                const SizedBox(height: 12),
+                _buildNotificationOption(
+                  title: 'Alerts only',
+                  subtitle: 'Receive only important alerts',
+                  value: NotificationPreference.alertsOnly,
+                ),
+                const SizedBox(height: 12),
+                _buildNotificationOption(
+                  title: 'None',
+                  subtitle: 'Disable every notification',
+                  value: NotificationPreference.none,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
           _buildInfoCard(),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -111,9 +142,9 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Serveur Modulabs',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  Text(
+                    _connectionName ?? 'Modulabs server',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -125,7 +156,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             TextButton(
               onPressed: () => _confirmDisconnect(context),
-              child: const Text('Changer'),
+              child: const Text('Change'),
             ),
           ],
         ),
@@ -152,7 +183,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Compte',
+                    'Account',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
@@ -163,10 +194,28 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-            TextButton(
-              onPressed: widget.onLogout,
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              child: const Text('Se déconnecter'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChangePasswordPage(
+                        baseUrl: widget.modulabsUrl,
+                        token: widget.token,
+                        forced: false,
+                        onDone: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
+                  child: const Text('Password'),
+                ),
+                TextButton(
+                  onPressed: widget.onLogout,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  child: const Text('Sign out'),
+                ),
+              ],
             ),
           ],
         ),
@@ -178,18 +227,18 @@ class _SettingsPageState extends State<SettingsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Changer de serveur'),
+        title: const Text('Change server'),
         content: const Text(
-          'Vous allez être déconnecté de Modulabs. Vous pourrez saisir une nouvelle adresse.',
+          'You will be signed out of Modulabs. You can then pick a saved Modulabs or add a new one.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Changer'),
+            child: const Text('Change'),
           ),
         ],
       ),
@@ -214,16 +263,7 @@ class _SettingsPageState extends State<SettingsPage> {
       elevation: 0,
       child: RadioListTile<NotificationPreference>(
         value: value,
-        groupValue: _selectedPreference,
         activeColor: AppColors.primary,
-        onChanged: (newValue) {
-          if (newValue != null) {
-            setState(() {
-              _selectedPreference = newValue;
-            });
-            widget.onPreferenceChanged(newValue);
-          }
-        },
         title: Text(
           title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -253,7 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 Icon(Icons.info_outline, color: AppColors.primary),
                 SizedBox(width: 12),
                 Text(
-                  'À propos des notifications',
+                  'About notifications',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -275,11 +315,11 @@ class _SettingsPageState extends State<SettingsPage> {
   String _getInfoText() {
     switch (_selectedPreference) {
       case NotificationPreference.all:
-        return 'Vous recevrez toutes les notifications: démarrages, arrêts, alertes CPU, et autres événements système.';
+        return 'You will receive every notification: module starts, stops, CPU alerts, and other system events.';
       case NotificationPreference.alertsOnly:
-        return 'Vous recevrez uniquement les alertes importantes: dépassements de seuil CPU, erreurs système, et incidents critiques.';
+        return 'You will receive only important alerts: CPU threshold breaches, system errors, and critical incidents.';
       case NotificationPreference.none:
-        return 'Aucune notification ne sera reçue. Vous pouvez consulter l\'historique des événements dans l\'onglet "Événements".';
+        return 'No notifications will be received. You can still check the event history in the "Events" tab.';
     }
   }
 }

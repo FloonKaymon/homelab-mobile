@@ -29,7 +29,7 @@ class ModulesPage extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           const Text(
-            'Gestion des Modules',
+            'Module Management',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 20),
@@ -55,7 +55,7 @@ class ModulesPage extends StatelessWidget {
               const SizedBox(height: 12),
               Text(error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: onRetry, child: const Text('Réessayer')),
+              ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
             ],
           ),
         ),
@@ -71,7 +71,7 @@ class ModulesPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 64),
               child: Center(
-                child: Text('Aucun module trouvé.', style: TextStyle(color: AppColors.faint(0.4))),
+                child: Text('No modules found.', style: TextStyle(color: AppColors.faint(0.4))),
               ),
             ),
           ],
@@ -159,7 +159,7 @@ class ModulesPage extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        module.isActive ? 'Arrêter le module' : 'Démarrer le module',
+                        module.isActive ? 'Stop module' : 'Start module',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),

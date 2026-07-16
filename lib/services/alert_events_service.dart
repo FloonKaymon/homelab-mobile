@@ -5,39 +5,53 @@ import 'package:http/http.dart' as http;
 import '../models/alert_event.dart';
 import 'api_exceptions.dart';
 
-/// Fetches recently triggered alert events from the Modulabs backend.
-///
-/// Hits `GET /api/alerts/events` - a **non-admin** counterpart to the
-/// existing admin-only `/api/admin/alerts/events` (same response shape,
-/// same `?limit=` param). This endpoint does not exist on the backend yet;
-/// it needs to be added there (see alerts-and-push-notifications.md) before
-/// polling can work end-to-end. Any authenticated user can call it, matching
-/// how `/api/devices` was deliberately made non-admin-gated.
+/// Result of a single `GET /api/alerts/events` call: the server's own clock
+/// (to store and replay as `since` on the next poll, avoiding phone/server
+/// clock drift) plus the events triggered since the last poll.
+class AlertEventsPage {
+  final String serverTime;
+  final List<AlertEvent> events;
+
+  const AlertEventsPage({required this.serverTime, required this.events});
+}
+
+/// Fetches alert events from the Modulabs backend (`GET /api/alerts/events`).
+/// Available to any authenticated user (not admin-gated), so the mobile app
+/// can poll it for notifications.
 class AlertEventsService {
   AlertEventsService._();
 
-  static Future<List<AlertEvent>> fetchRecentEvents(
+  static Future<AlertEventsPage> fetchEvents(
     String baseUrl,
     String token, {
-    int limit = 20,
+    String? since,
   }) async {
+    final uri = Uri.parse('$baseUrl/api/alerts/events').replace(
+      queryParameters: since != null ? {'since': since} : null,
+    );
     final response = await http
-        .get(
-          Uri.parse('$baseUrl/api/alerts/events?limit=$limit'),
-          headers: {'Authorization': 'Bearer $token'},
-        )
+        .get(uri, headers: {'Authorization': 'Bearer $token'})
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 401) throw UnauthorizedException();
     if (response.statusCode != 200) {
-      throw Exception('Le serveur a répondu avec le code ${response.statusCode}.');
+      throw Exception('The server responded with code ${response.statusCode}.');
     }
 
-    final body = jsonDecode(response.body);
-    if (body is! List) {
-      throw Exception('Historique des alertes indisponible pour le moment.');
+    // The backend sends `application/json` without a charset, so decode the
+    // raw bytes as UTF-8 explicitly - otherwise Dart's http package falls
+    // back to latin1 and accented text (e.g. "Mémoire") arrives mangled.
+    final body = jsonDecode(utf8.decode(response.bodyBytes));
+    if (body is! Map) {
+      throw Exception('Alert history is currently unavailable.');
     }
 
-    return body.map((e) => AlertEvent.fromJson(e as Map<String, dynamic>)).toList();
+    final events = (body['events'] as List? ?? const [])
+        .map((e) => AlertEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return AlertEventsPage(
+      serverTime: body['serverTime'] as String? ?? '',
+      events: events,
+    );
   }
 }

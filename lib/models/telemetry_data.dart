@@ -1,3 +1,16 @@
+/// Mirrors the backend's `CpuData` (com.homelab.core.model.telemetry.CpuData). Values in percent.
+class CpuInfo {
+  final double totalPercent;
+  final double coreUsedPercent;
+
+  const CpuInfo({required this.totalPercent, required this.coreUsedPercent});
+
+  factory CpuInfo.fromJson(Map<String, dynamic> json) => CpuInfo(
+        totalPercent: (json['total'] as num).toDouble(),
+        coreUsedPercent: (json['coreUsed'] as num?)?.toDouble() ?? 0,
+      );
+}
+
 /// Mirrors the backend's `RamData` (com.homelab.core.model.telemetry.RamData). Values in GB.
 class RamInfo {
   final double totalGb;
@@ -46,21 +59,39 @@ class DiskInfo {
       );
 }
 
+/// Mirrors the backend's `ModuleStorageData`
+/// (com.homelab.core.model.telemetry.ModuleStorageData).
+class ModuleStorageData {
+  final String id;
+  final String name;
+  final double storageGb;
+
+  const ModuleStorageData({required this.id, required this.name, required this.storageGb});
+
+  factory ModuleStorageData.fromJson(Map<String, dynamic> json) => ModuleStorageData(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        storageGb: (json['storageGb'] as num?)?.toDouble() ?? 0,
+      );
+}
+
 /// Mirrors the backend's `TelemetryData` (com.homelab.core.model.telemetry.TelemetryData),
 /// as returned by `GET /api/telemetry`.
 class TelemetryData {
-  final double cpuPercent;
+  final CpuInfo cpu;
   final RamInfo ram;
   final DiskInfo disk;
   final int activeModulesCount;
   final int uptimeSeconds;
+  final List<ModuleStorageData> perModuleStorage;
 
   const TelemetryData({
-    required this.cpuPercent,
+    required this.cpu,
     required this.ram,
     required this.disk,
     required this.activeModulesCount,
     required this.uptimeSeconds,
+    required this.perModuleStorage,
   });
 
   String get formattedUptime {
@@ -73,10 +104,13 @@ class TelemetryData {
   }
 
   factory TelemetryData.fromJson(Map<String, dynamic> json) => TelemetryData(
-        cpuPercent: (json['cpu'] as num).toDouble(),
+        cpu: CpuInfo.fromJson(json['cpu'] as Map<String, dynamic>),
         ram: RamInfo.fromJson(json['ram'] as Map<String, dynamic>),
         disk: DiskInfo.fromJson(json['disk'] as Map<String, dynamic>),
         activeModulesCount: json['activeModulesCount'] as int? ?? 0,
         uptimeSeconds: (json['uptime'] as num?)?.toInt() ?? 0,
+        perModuleStorage: (json['perModuleStorage'] as List? ?? const [])
+            .map((e) => ModuleStorageData.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
