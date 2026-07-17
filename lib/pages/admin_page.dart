@@ -8,7 +8,9 @@ import 'admin/system_page.dart';
 
 /// Admin section of the app: account validation (accounts), password reset
 /// moderation (resets), role assignment (roles) and system controls
-/// (system), gated on `UserDto.isAdmin` (see `main.dart`).
+/// (system). Gated on `UserDto.hasAdminAccess` (see `main.dart`) - available to
+/// the administrator and to any ADMIN_ACCESS holder. Actions reserved to the
+/// real administrator (changing the admin's roles) are refused by the backend.
 class AdminPage extends StatelessWidget {
   final String baseUrl;
   final String token;

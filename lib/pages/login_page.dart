@@ -62,6 +62,10 @@ class _LoginPageState extends State<LoginPage> {
       case LoginResult.invalidCredentials:
         setState(() => _errorMessage = 'Incorrect email or password.');
         break;
+      case LoginResult.notAuthorized:
+        setState(() => _errorMessage =
+            'This app is reserved for administrators. Your account does not have admin access.');
+        break;
       case LoginResult.unreachable:
         setState(() => _errorMessage = 'Unable to reach the Modulabs server.');
         break;

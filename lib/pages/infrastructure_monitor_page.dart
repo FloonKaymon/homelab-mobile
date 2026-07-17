@@ -15,7 +15,10 @@ import 'settings_page.dart' show SettingsPage, NotificationPreference;
 class InfrastructureMonitorPage extends StatefulWidget {
   final String baseUrl;
   final String token;
-  final bool isAdmin;
+  // True when the signed-in user may use the Admin section: the administrator
+  // (isAdmin) or any holder of the ADMIN_ACCESS permission. The app is admin-only,
+  // so in practice every signed-in user qualifies (see AuthService.login).
+  final bool hasAdminAccess;
   final VoidCallback onDisconnect;
   final VoidCallback onLogout;
 
@@ -23,7 +26,7 @@ class InfrastructureMonitorPage extends StatefulWidget {
     super.key,
     required this.baseUrl,
     required this.token,
-    required this.isAdmin,
+    required this.hasAdminAccess,
     required this.onDisconnect,
     required this.onLogout,
   });
@@ -165,7 +168,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
           onLogout: widget.onLogout,
         );
       case 4:
-        if (widget.isAdmin) {
+        if (widget.hasAdminAccess) {
           return AdminPage(baseUrl: widget.baseUrl, token: widget.token, onLogout: widget.onLogout);
         }
         return DashboardPage(
@@ -236,7 +239,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
             icon: Icon(Icons.settings),
             label: 'Settings',
           ),
-          if (widget.isAdmin)
+          if (widget.hasAdminAccess)
             const BottomNavigationBarItem(
               icon: Icon(Icons.admin_panel_settings),
               label: 'Admin',

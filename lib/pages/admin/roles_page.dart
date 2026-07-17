@@ -77,6 +77,9 @@ class _RolesPageState extends State<RolesPage> {
       .name;
 
   Future<void> _editRoles(UserDto user) async {
+    // The administrator's roles are off-limits (the backend refuses to change them).
+    // The card below is already non-interactive for admins; this guards the path anyway.
+    if (user.isAdmin) return;
     final selected = Set<int>.from(user.roleIds);
     final result = await showDialog<Set<int>>(
       context: context,
@@ -228,8 +231,9 @@ class _RolesPageState extends State<RolesPage> {
             ],
           ),
         ),
-        trailing: const Icon(Icons.edit_outlined),
-        onTap: () => _editRoles(user),
+        // The administrator's roles can't be changed, so their card offers no edit action.
+        trailing: user.isAdmin ? null : const Icon(Icons.edit_outlined),
+        onTap: user.isAdmin ? null : () => _editRoles(user),
       ),
     );
   }

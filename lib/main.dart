@@ -48,7 +48,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
   _GateStage _stage = _GateStage.loading;
   String? _baseUrl;
   String? _token;
-  bool _isAdmin = false;
+  bool _hasAdminAccess = false;
 
   @override
   void initState() {
@@ -66,16 +66,17 @@ class _ConnectionGateState extends State<ConnectionGate> {
 
     final token = await AuthService.getToken();
     // `/api/auth/me` doubles as the token-validity probe: a non-null result
-    // means the stored session is still accepted, and it carries `isAdmin`
-    // in the same round-trip.
+    // means the stored session is still accepted, and it carries `isAdmin` and
+    // the admin permissions in the same round-trip. The app is admin-only, so a
+    // session whose admin access was revoked since login is dropped here too.
     final currentUser = token != null ? await AuthService.fetchCurrentUser(url, token) : null;
-    if (token != null && currentUser != null) {
+    if (token != null && currentUser != null && currentUser.hasAdminAccess) {
       if (!mounted) return;
       if (currentUser.mustResetPassword) {
         setState(() {
           _baseUrl = url;
           _token = token;
-          _isAdmin = currentUser.isAdmin;
+          _hasAdminAccess = currentUser.hasAdminAccess;
           _stage = _GateStage.needsPasswordChange;
         });
         return;
@@ -83,7 +84,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
       setState(() {
         _baseUrl = url;
         _token = token;
-        _isAdmin = currentUser.isAdmin;
+        _hasAdminAccess = currentUser.hasAdminAccess;
         _stage = _GateStage.ready;
       });
       unawaited(AlertPollingService.start(baseUrl: url, token: token));
@@ -112,14 +113,14 @@ class _ConnectionGateState extends State<ConnectionGate> {
     if (currentUser?.mustResetPassword ?? false) {
       setState(() {
         _token = token;
-        _isAdmin = currentUser?.isAdmin ?? false;
+        _hasAdminAccess = currentUser?.hasAdminAccess ?? false;
         _stage = _GateStage.needsPasswordChange;
       });
       return;
     }
     setState(() {
       _token = token;
-      _isAdmin = currentUser?.isAdmin ?? false;
+      _hasAdminAccess = currentUser?.hasAdminAccess ?? false;
       _stage = _GateStage.ready;
     });
     if (token != null) {
@@ -144,7 +145,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
     setState(() {
       _baseUrl = null;
       _token = null;
-      _isAdmin = false;
+      _hasAdminAccess = false;
       _stage = _GateStage.needsUrl;
     });
   }
@@ -157,7 +158,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
     if (!mounted) return;
     setState(() {
       _token = null;
-      _isAdmin = false;
+      _hasAdminAccess = false;
       _stage = _GateStage.needsLogin;
     });
   }
@@ -186,7 +187,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
         return InfrastructureMonitorPage(
           baseUrl: _baseUrl!,
           token: _token!,
-          isAdmin: _isAdmin,
+          hasAdminAccess: _hasAdminAccess,
           onDisconnect: _onChangeServer,
           onLogout: _onLogout,
         );

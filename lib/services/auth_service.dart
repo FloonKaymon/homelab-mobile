@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/user_dto.dart';
 
-enum LoginResult { success, invalidCredentials, unreachable, error }
+enum LoginResult { success, invalidCredentials, notAuthorized, unreachable, error }
 
 /// Handles login against the Modulabs backend and persists the resulting
 /// JWT session (token + user email) in the platform secure storage.
@@ -45,6 +45,20 @@ class AuthService {
         final userEmail = (body['userEmail'] as String?) ?? email;
         await _storage.write(key: _tokenKey, value: token);
         await _storage.write(key: _emailKey, value: userEmail);
+
+        // This app is reserved for administrators: credentials alone are not enough, the
+        // account must also carry admin rights (isAdmin or the ADMIN_ACCESS permission).
+        // Verify via /api/auth/me and refuse the session otherwise, clearing the token we
+        // just stored so no non-admin session is ever left behind.
+        final currentUser = await fetchCurrentUser(baseUrl, token);
+        if (currentUser == null) {
+          await logout();
+          return LoginResult.unreachable;
+        }
+        if (!currentUser.hasAdminAccess) {
+          await logout();
+          return LoginResult.notAuthorized;
+        }
         return LoginResult.success;
       }
       return LoginResult.invalidCredentials;
