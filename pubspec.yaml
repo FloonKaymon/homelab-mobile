@@ -45,8 +45,12 @@ dependencies:
   # checking for new alert events every minute even when the app is
   # backgrounded or fully killed.
   flutter_foreground_task: ^9.2.2
-  # Renders the local notification when a new alert event is found by polling.
+  # Renders the local notification for a new alert, both for events pushed down
+  # the SSE stream and for the catch-up fetch on reconnect (see AlertNotifier).
   flutter_local_notifications: ^22.0.1
+  # Rasterizes SVG module icons: the icon endpoint has no file extension, so we
+  # sniff the fetched bytes and render vector icons with this (see ModuleIcon).
+  flutter_svg: ^2.0.17
 
 dev_dependencies:
   flutter_test:

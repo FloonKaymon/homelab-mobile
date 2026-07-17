@@ -7,14 +7,16 @@ import 'pages/change_password_page.dart';
 import 'pages/connection_setup_page.dart';
 import 'pages/infrastructure_monitor_page.dart';
 import 'pages/login_page.dart';
-import 'services/alert_polling_service.dart';
+import 'services/alert_stream_service.dart';
 import 'services/auth_service.dart';
 import 'services/modulabs_connection.dart';
+import 'services/notification_coordinator.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   FlutterForegroundTask.initCommunicationPort();
-  AlertPollingService.initialize();
+  AlertStreamService.initialize();
   runApp(const MyApp());
 }
 
@@ -87,7 +89,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
         _hasAdminAccess = currentUser.hasAdminAccess;
         _stage = _GateStage.ready;
       });
-      unawaited(AlertPollingService.start(baseUrl: url, token: token));
+      unawaited(NotificationCoordinator.start(baseUrl: url, token: token));
       return;
     }
 
@@ -124,20 +126,20 @@ class _ConnectionGateState extends State<ConnectionGate> {
       _stage = _GateStage.ready;
     });
     if (token != null) {
-      unawaited(AlertPollingService.start(baseUrl: _baseUrl!, token: token));
+      unawaited(NotificationCoordinator.start(baseUrl: _baseUrl!, token: token));
     }
   }
 
   Future<void> _onPasswordChanged() async {
     setState(() => _stage = _GateStage.ready);
     if (_baseUrl != null && _token != null) {
-      unawaited(AlertPollingService.start(baseUrl: _baseUrl!, token: _token!));
+      unawaited(NotificationCoordinator.start(baseUrl: _baseUrl!, token: _token!));
     }
   }
 
   Future<void> _onChangeServer() async {
     if (_baseUrl != null && _token != null) {
-      await AlertPollingService.stop();
+      await NotificationCoordinator.stop();
     }
     await AuthService.logout();
     await ModulabsConnection.clear();
@@ -152,7 +154,7 @@ class _ConnectionGateState extends State<ConnectionGate> {
 
   Future<void> _onLogout() async {
     if (_baseUrl != null && _token != null) {
-      await AlertPollingService.stop();
+      await NotificationCoordinator.stop();
     }
     await AuthService.logout();
     if (!mounted) return;

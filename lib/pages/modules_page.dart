@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/modulabs_module.dart';
 import '../theme/app_theme.dart';
+import '../widgets/module_icon.dart';
 
 class ModulesPage extends StatelessWidget {
   final List<ModulabsModule> modules;
@@ -10,6 +11,12 @@ class ModulesPage extends StatelessWidget {
   final void Function(ModulabsModule) onToggleModule;
   final Future<void> Function() onRetry;
 
+  /// Bearer token, forwarded as an `Authorization` header when fetching module
+  /// icons. The icon endpoint (`/api/modules/{id}/UI/icon`) runs `requireAccess`
+  /// on the server, so an unauthenticated image request gets a 403 for any
+  /// module that declares permissions - hence the header is required here.
+  final String token;
+
   const ModulesPage({
     super.key,
     required this.modules,
@@ -18,6 +25,7 @@ class ModulesPage extends StatelessWidget {
     required this.togglingIds,
     required this.onToggleModule,
     required this.onRetry,
+    required this.token,
   });
 
   @override
@@ -176,12 +184,9 @@ class ModulesPage extends StatelessWidget {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        module.iconUrl!,
-        width: 32,
-        height: 32,
-        errorBuilder: (_, _, _) => Icon(Icons.widgets, size: 32, color: AppColors.faint(0.5)),
-      ),
+      // ModuleIcon fetches the icon with the Bearer token (the endpoint is
+      // access-controlled) and renders SVG or raster depending on the response.
+      child: ModuleIcon(url: module.iconUrl!, token: token, size: 32),
     );
   }
 

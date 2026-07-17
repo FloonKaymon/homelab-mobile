@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../services/alert_stream_service.dart';
 import '../services/auth_service.dart';
 import '../services/modulabs_connection.dart';
+import '../services/notification_coordinator.dart';
 import '../theme/app_theme.dart';
 import 'change_password_page.dart';
 
-enum NotificationPreference {
-  all,
-  alertsOnly,
-  none,
-}
-
 class SettingsPage extends StatefulWidget {
-  final NotificationPreference currentPreference;
-  final Function(NotificationPreference) onPreferenceChanged;
   final String modulabsUrl;
   final String token;
   final VoidCallback onDisconnect;
@@ -21,8 +15,6 @@ class SettingsPage extends StatefulWidget {
 
   const SettingsPage({
     super.key,
-    required this.currentPreference,
-    required this.onPreferenceChanged,
     required this.modulabsUrl,
     required this.token,
     required this.onDisconnect,
@@ -34,18 +26,38 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  late NotificationPreference _selectedPreference;
   String? _userEmail;
   String? _connectionName;
+  bool _pushEnabled = true;
+  bool _pushBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedPreference = widget.currentPreference;
     AuthService.getUserEmail().then((email) {
       if (mounted) setState(() => _userEmail = email);
     });
+    AlertStreamService.isEnabled().then((enabled) {
+      if (mounted) setState(() => _pushEnabled = enabled);
+    });
     _loadConnectionName();
+  }
+
+  Future<void> _onPushToggled(bool enabled) async {
+    // Optimistic flip, but block re-entry while the connection starts/stops.
+    setState(() {
+      _pushEnabled = enabled;
+      _pushBusy = true;
+    });
+    try {
+      await NotificationCoordinator.setEnabled(
+        enabled,
+        baseUrl: widget.modulabsUrl,
+        token: widget.token,
+      );
+    } finally {
+      if (mounted) setState(() => _pushBusy = false);
+    }
   }
 
   Future<void> _loadConnectionName() async {
@@ -85,39 +97,7 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          RadioGroup<NotificationPreference>(
-            groupValue: _selectedPreference,
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _selectedPreference = value);
-                widget.onPreferenceChanged(value);
-              }
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildNotificationOption(
-                  title: 'All',
-                  subtitle: 'Receive every notification',
-                  value: NotificationPreference.all,
-                ),
-                const SizedBox(height: 12),
-                _buildNotificationOption(
-                  title: 'Alerts only',
-                  subtitle: 'Receive only important alerts',
-                  value: NotificationPreference.alertsOnly,
-                ),
-                const SizedBox(height: 12),
-                _buildNotificationOption(
-                  title: 'None',
-                  subtitle: 'Disable every notification',
-                  value: NotificationPreference.none,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          _buildInfoCard(),
+          _buildPushCard(),
           const SizedBox(height: 16),
         ],
       ),
@@ -249,11 +229,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Widget _buildNotificationOption({
-    required String title,
-    required String subtitle,
-    required NotificationPreference value,
-  }) {
+  Widget _buildPushCard() {
     return Card(
       color: AppColors.base100,
       shape: RoundedRectangleBorder(
@@ -261,65 +237,24 @@ class _SettingsPageState extends State<SettingsPage> {
         side: BorderSide(color: AppColors.faint(0.05)),
       ),
       elevation: 0,
-      child: RadioListTile<NotificationPreference>(
-        value: value,
-        activeColor: AppColors.primary,
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      child: SwitchListTile(
+        value: _pushEnabled,
+        activeThumbColor: AppColors.primary,
+        // Disabled while a toggle is applying so we don't restart mid-restart.
+        onChanged: _pushBusy ? null : (value) => _onPushToggled(value),
+        title: const Text(
+          'Background alerts',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        subtitle: Text(subtitle, style: TextStyle(color: AppColors.faint(0.55))),
+        subtitle: Text(
+          'On: alerts arrive even when the app is closed, over a direct '
+          'connection to your Modulabs server (requires a permanent '
+          '"monitoring" notification). Off: alerts arrive only while the app is open.',
+          style: TextStyle(color: AppColors.faint(0.55)),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
-  }
-
-  Widget _buildInfoCard() {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
-      ),
-      color: AppColors.primary.withValues(alpha: 0.08),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.info_outline, color: AppColors.primary),
-                SizedBox(width: 12),
-                Text(
-                  'About notifications',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _getInfoText(),
-              style: TextStyle(fontSize: 13, height: 1.6, color: AppColors.faint(0.7)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getInfoText() {
-    switch (_selectedPreference) {
-      case NotificationPreference.all:
-        return 'You will receive every notification: module starts, stops, CPU alerts, and other system events.';
-      case NotificationPreference.alertsOnly:
-        return 'You will receive only important alerts: CPU threshold breaches, system errors, and critical incidents.';
-      case NotificationPreference.none:
-        return 'No notifications will be received. You can still check the event history in the "Events" tab.';
-    }
   }
 }

@@ -27,7 +27,9 @@ class ModuleService {
     }
 
     final list = jsonDecode(utf8.decode(response.bodyBytes)) as List;
-    return list.map((e) => ModulabsModule.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => ModulabsModule.fromJson(e as Map<String, dynamic>, baseUrl: baseUrl))
+        .toList();
   }
 
   static Future<void> startModule(String baseUrl, String token, String id) =>

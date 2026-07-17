@@ -4,6 +4,12 @@
 /// underlying rule is later edited or deleted.
 class AlertEvent {
   final int id;
+
+  /// What produced the event, from the backend `AlertSource` enum:
+  /// `RULE` (a threshold rule fired), `ACCOUNT` (a sign-up awaits validation),
+  /// or `ERROR` (the server logged an error). Drives the notification's title
+  /// and, for `ERROR`, collapses repeats into a single notification.
+  final String source;
   final int ruleId;
   final String ruleName;
   final String metric;
@@ -15,6 +21,7 @@ class AlertEvent {
 
   const AlertEvent({
     required this.id,
+    required this.source,
     required this.ruleId,
     required this.ruleName,
     required this.metric,
@@ -27,6 +34,7 @@ class AlertEvent {
 
   factory AlertEvent.fromJson(Map<String, dynamic> json) => AlertEvent(
         id: json['id'] as int,
+        source: json['source'] as String? ?? 'RULE',
         ruleId: json['ruleId'] as int? ?? 0,
         ruleName: json['ruleName'] as String? ?? '',
         metric: json['metric'] as String? ?? '',

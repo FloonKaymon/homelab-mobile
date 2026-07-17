@@ -10,7 +10,7 @@ import 'admin_page.dart';
 import 'dashboard_page.dart';
 import 'modules_page.dart';
 import 'events_page.dart';
-import 'settings_page.dart' show SettingsPage, NotificationPreference;
+import 'settings_page.dart' show SettingsPage;
 
 class InfrastructureMonitorPage extends StatefulWidget {
   final String baseUrl;
@@ -41,7 +41,6 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
   bool _loading = true;
   String? _error;
   int _selectedIndex = 0;
-  NotificationPreference _notificationPreference = NotificationPreference.all;
 
   TelemetryData? _telemetry;
   bool _telemetryLoading = true;
@@ -151,17 +150,12 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
           togglingIds: _togglingIds,
           onToggleModule: _toggleModule,
           onRetry: _loadModules,
+          token: widget.token,
         );
       case 2:
         return EventsPage(baseUrl: widget.baseUrl, token: widget.token, onLogout: widget.onLogout);
       case 3:
         return SettingsPage(
-          currentPreference: _notificationPreference,
-          onPreferenceChanged: (preference) {
-            setState(() {
-              _notificationPreference = preference;
-            });
-          },
           modulabsUrl: widget.baseUrl,
           token: widget.token,
           onDisconnect: widget.onDisconnect,
@@ -195,10 +189,6 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
     }
   }
 
-  Future<void> _refreshAll() async {
-    await Future.wait([_loadModules(), _loadTelemetry()]);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,12 +196,6 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
         title: const Text('Modulabs'),
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loading ? null : _refreshAll,
-          ),
-        ],
       ),
       body: _buildPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
@@ -224,7 +208,7 @@ class _InfrastructureMonitorPageState extends State<InfrastructureMonitorPage> {
         },
         items: [
           const BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
+            icon: Icon(Icons.speed),
             label: 'Dashboard',
           ),
           const BottomNavigationBarItem(
